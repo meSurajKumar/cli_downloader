@@ -59,3 +59,28 @@ pub fn calculate_chunks(file_size: u64, num_threads: usize)->Vec<Chunk>{
     }
     chunks
 }
+
+pub async fn download_chuck(
+    client : &Client,
+    url : &str,
+    chunk : &Chunk
+)->Result<Vec<u8>>{
+
+    let range_header = format!("bytes={}-{}",chunk.start_byte, chunk.end_byte);
+
+    let response = client
+    .get(url)
+    .header(("Range"), range_header)
+    .send()
+    .await?;
+
+    let status = response.status();
+    if !status.is_success(){
+        return Err(DownloadError::NetworkError(response.error_for_status().unwrap_err()
+    ));
+    }
+    let bytes = response.bytes().await?;
+    Ok(bytes.to_vec())
+}
+
+
