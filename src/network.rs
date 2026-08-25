@@ -70,7 +70,7 @@ pub async fn download_chuck(
 
     let response = client
     .get(url)
-    .header(("Range"), range_header)
+    .header("Range", range_header)
     .send()
     .await?;
 
