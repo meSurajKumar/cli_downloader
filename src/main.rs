@@ -13,8 +13,7 @@ use tokio::task::JoinHandle; // Spanwned taks ko track kree ga.
 
 #[tokio::main]
 async fn main(){
-    // let url = "https://packaged-media.redd.it/vh77t5m249lh1/pb/m2-res_480p.mp4?m=DASHPlaylist.mpd&var=sgpssan&v=1&e=1787580000&s=f8afa2213ee9bd52cd8f76fa4ef1e0cbe00adcaf";
-    // let url = "https://speed.hetzner.de/100MB.bin";
+    // Youtube Url are not supported.    
     let url = "https://cdn.cocktail.beer/RoboCop.2014.1080p.BluRay.Hindi.English.DD5.1.x264.ESubs.mkv?token=b09d18a51cd56e55b59731a8c08ec899_158";
     let output_path  = "RoboCop.2014.1080p.BluRay.Hindi.English.DD5.1.x264.ESubs.mkv";
     let num_threads = 4;
