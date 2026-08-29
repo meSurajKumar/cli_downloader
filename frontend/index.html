@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyDownloader</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app">
+        <h1>EasyDownloader</h1>
+        <!-- Url input section -->
+        <div class="input-section">
+            <input type="text" id="url-input" placeholder="Paste download URL here..." />
+            <input type="number" id="threads" value="4" min="1" max="16" />
+            <button id="info-btn">Get Info</button>
+        </div>
+        <!-- File Info Section -->
+        <div class="file-info" id="file-info" style="display: none;">
+            <p id="filename-text">Filename: -</p>
+            <p id="filesize-text">Size: -</p>
+            <button id="download-btn">Download</button>
+        </div>
+
+        <!-- Progress Section -->
+        <!-- Progress Section — REPLACE karo purana wala -->
+        <div class="progress-section" id="progress-section" style="display: none;">
+
+            <!-- Overall Progress -->
+            <div class="overall-header">
+                <span id="status-text">Downloading...</span>
+                <span id="overall-speed">0 MB/s</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <p id="percent-text">0%</p>
+
+            <!-- Individual Chunk Cards — JS se fill honge -->
+            <div id="chunks-container"></div>
+
+        </div>
+
+    </div>
+    <script type="module" src="main.js"></script>
+
+</body>
+
+</html>

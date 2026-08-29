@@ -1,0 +1,237 @@
+/* Google Font import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0d0d12;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app {
+    width: 680px;
+    padding: 40px;
+    background: #13131a;
+    border-radius: 16px;
+    border: 1px solid #1e1e2e;
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #00d4ff;
+    margin-bottom: 28px;
+    letter-spacing: -0.5px;
+}
+
+/* Input Section */
+.input-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    flex: 1;
+    padding: 12px 16px;
+    background: #1a1a2e;
+    border: 1px solid #2a2a3e;
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+    border-color: #00d4ff;
+}
+
+input[type="number"] {
+    width: 70px;
+    padding: 12px;
+    background: #1a1a2e;
+    border: 1px solid #2a2a3e;
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 14px;
+    text-align: center;
+    outline: none;
+}
+
+button {
+    padding: 12px 24px;
+    background: #00d4ff;
+    color: #0d0d12;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+button:hover {
+    background: #00b8d9;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* File Info */
+.file-info {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border: 1px solid #2a2a3e;
+}
+
+.file-info p {
+    font-size: 13px;
+    color: #a0a0b0;
+    margin-bottom: 8px;
+}
+
+.file-info p span {
+    color: #e0e0e0;
+    font-weight: 500;
+}
+
+#download-btn {
+    margin-top: 12px;
+    background: linear-gradient(135deg, #00d4ff, #7c3aed);
+    color: white;
+    width: 100%;
+}
+
+/* Progress Section */
+.progress-section {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid #2a2a3e;
+}
+
+#status-text {
+    font-size: 13px;
+    color: #a0a0b0;
+    margin-bottom: 12px;
+}
+
+.progress-bar {
+    background: #0d0d12;
+    border-radius: 10px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00d4ff, #7c3aed);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    /* Smooth animation! */
+}
+
+#percent-text {
+    font-size: 13px;
+    color: #00d4ff;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ── Overall Header ── */
+.overall-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+#overall-speed {
+    font-size: 13px;
+    color: #00d4ff;
+    font-weight: 600;
+}
+
+/* ── Chunks Container ── */
+#chunks-container {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ── Individual Chunk Card ── */
+.chunk-card {
+    background: #0d0d12;
+    border-radius: 8px;
+    padding: 10px 14px;
+    border: 1px solid #1e1e2e;
+}
+
+.chunk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.chunk-label {
+    font-size: 12px;
+    color: #a0a0b0;
+    font-weight: 500;
+}
+
+.chunk-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.chunk-speed {
+    font-size: 12px;
+    color: #00d4ff;
+}
+
+.chunk-status {
+    font-size: 14px;
+}
+
+/* Chunk ka progress bar */
+.chunk-bar {
+    background: #1a1a2e;
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+}
+
+.chunk-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00d4ff, #7c3aed);
+    border-radius: 4px;
+    transition: width 0.15s ease;
+    /* Fast transition for streaming */
+}
+
+.chunk-percent {
+    font-size: 11px;
+    color: #606070;
+    text-align: right;
+    margin-top: 4px;
+}

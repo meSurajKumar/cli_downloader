@@ -5,6 +5,7 @@
 
 use crate::error::{DownloadError, Result};
 use crate::types::{Chunk, FileMetadata};
+use futures::StreamExt;
 
 // reqwest ka async HTTP client
 use reqwest::Client;
@@ -60,27 +61,32 @@ pub fn calculate_chunks(file_size: u64, num_threads: usize)->Vec<Chunk>{
     chunks
 }
 
-pub async fn download_chuck(
-    client : &Client,
-    url : &str,
-    chunk : &Chunk
-)->Result<Vec<u8>>{
-
-    let range_header = format!("bytes={}-{}",chunk.start_byte, chunk.end_byte);
-
-    let response = client
-    .get(url)
-    .header("Range", range_header)
-    .send()
-    .await?;
-
+pub async fn download_chunk_with_progress(
+    client: &Client,
+    url: &str,
+    chunk: &Chunk,
+    mut on_progress: impl FnMut(u64),
+)-> Result<Vec<u8>>{
+    let range_header = format!("bytes={}-{}",chunk.start_byte,chunk.end_byte);
+    let response = client.get(url).header("Range", range_header).send().await?;
     let status = response.status();
     if !status.is_success(){
-        return Err(DownloadError::NetworkError(response.error_for_status().unwrap_err()
-    ));
+        return Err(DownloadError::NetworkError(
+            response.error_for_status().unwrap_err()
+        ));
     }
-    let bytes = response.bytes().await?;
-    Ok(bytes.to_vec())
+    // usign bytes_stream()
+    let mut stream = response.bytes_stream();
+    let mut data: Vec<u8> = Vec::new();
+    let mut bytes_so_far: u64 = 0;
+
+    // loop for each piece
+    while let Some(piece) = stream.next().await{
+        let piece = piece.map_err(DownloadError::NetworkError)?;
+        bytes_so_far += piece.len() as u64;
+        data.extend_from_slice(&piece); // data me add karo
+        // Progress callback call karo
+        on_progress(bytes_so_far);
+    }
+    Ok(data)
 }
-
-
