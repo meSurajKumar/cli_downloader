@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Add New Download</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        /* Modal window specific styles */
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <div class="modal-header" style="border-radius: 0;">
+        <h3>Add New Download</h3>
+    </div>
+
+    <!-- Body -->
+    <div class="modal-body" style="flex: 1; overflow-y: auto;">
+
+        <!-- Section 1: Download Source -->
+        <section>
+            <h4>Download Source</h4>
+            <div class="url-input-row">
+                <input type="text" id="modal-url" placeholder="🔗 Enter file URL here..." />
+                <button id="paste-btn" title="Paste from clipboard">📋</button>
+            </div>
+        </section>
+
+        <!-- Section 2: File Information -->
+        <section>
+            <h4>File Information</h4>
+            <input type="text" id="custom-filename" placeholder="Enter file name (optional)" />
+            <div class="dir-row">
+                <input type="text" id="output-dir" value="D:\Downloads" readonly />
+                <button id="browse-btn" title="Browse folder">📁</button>
+            </div>
+        </section>
+
+        <!-- Section 3: File Details -->
+        <section>
+            <h4>File Details</h4>
+            <div class="file-details-grid">
+                <div><label>File Size</label><span id="detail-size">--</span></div>
+                <div><label>Content Type</label><span id="detail-type">--</span></div>
+                <div><label>Accept Ranges</label><span id="detail-ranges">--</span></div>
+                <div><label>Last Modified</label><span id="detail-date">--</span></div>
+            </div>
+            <button id="refresh-details-btn">↺ Refresh Details</button>
+        </section>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer" style="border-radius: 0;">
+        <button id="modal-cancel">Cancel</button>
+        <button id="modal-download">⬇ Download</button>
+    </div>
+
+    <script src="modal.js"></script>
+</body>
+
+</html>

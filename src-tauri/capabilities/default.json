@@ -3,9 +3,11 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "main",
+    "add-download"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:webview:allow-create-webview-window"
   ]
 }

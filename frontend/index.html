@@ -2,50 +2,104 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EasyDownloader</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-    <div class="app">
-        <h1>EasyDownloader</h1>
-        <!-- Url input section -->
-        <div class="input-section">
-            <input type="text" id="url-input" placeholder="Paste download URL here..." />
-            <input type="number" id="threads" value="4" min="1" max="16" />
-            <button id="info-btn">Get Info</button>
-        </div>
-        <!-- File Info Section -->
-        <div class="file-info" id="file-info" style="display: none;">
-            <p id="filename-text">Filename: -</p>
-            <p id="filesize-text">Size: -</p>
-            <button id="download-btn">Download</button>
-        </div>
+    <div class="app-layout">
 
-        <!-- Progress Section -->
-        <!-- Progress Section — REPLACE karo purana wala -->
-        <div class="progress-section" id="progress-section" style="display: none;">
+        <!-- ═══════════════════════════════════════ -->
+        <!--  TOP BAR                                -->
+        <!-- ═══════════════════════════════════════ -->
+        <header class="topbar">
+            <input type="text" id="url-input" placeholder="🔗 Enter file URL here..." />
+            <button id="add-download-btn">+ Add Download</button>
+            <button id="theme-toggle">🌙</button>
+            <button id="settings-btn">⚙</button>
+        </header>
 
-            <!-- Overall Progress -->
-            <div class="overall-header">
-                <span id="status-text">Downloading...</span>
-                <span id="overall-speed">0 MB/s</span>
+        <!-- ═══════════════════════════════════════ -->
+        <!--  SIDEBAR                                -->
+        <!-- ═══════════════════════════════════════ -->
+        <aside class="sidebar">
+
+            <!-- Navigation Menu -->
+            <nav class="nav-menu">
+                <a class="nav-item active" data-view="downloads">📥 Downloads</a>
+                <a class="nav-item" data-view="history">🕐 History</a>
+                <a class="nav-item" data-view="categories">📂 Categories</a>
+                <a class="nav-item" data-view="settings">⚙ Settings</a>
+            </nav>
+
+            <!-- Categories List -->
+            <div class="categories-list">
+                <span class="categories-label">CATEGORIES</span>
+                <a class="cat-item active" data-cat="all">📁 All Files <span id="cat-all">0</span></a>
+                <a class="cat-item" data-cat="video">🎬 Video <span id="cat-video">0</span></a>
+                <a class="cat-item" data-cat="audio">🎵 Audio <span id="cat-audio">0</span></a>
+                <a class="cat-item" data-cat="compressed">📦 Compressed <span id="cat-compressed">0</span></a>
+                <a class="cat-item" data-cat="document">📄 Documents <span id="cat-document">0</span></a>
+                <a class="cat-item" data-cat="other">❓ Others <span id="cat-other">0</span></a>
             </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill"></div>
+
+            <!-- Storage Widget -->
+            <div class="storage-widget">
+                <div class="storage-info">
+                    <span>Storage</span>
+                    <span id="storage-percent">--</span>
+                </div>
+                <div class="storage-bar">
+                    <div class="storage-fill" id="storage-fill" style="width: 0%"></div>
+                </div>
+                <p id="storage-text">Calculating...</p>
             </div>
-            <p id="percent-text">0%</p>
 
-            <!-- Individual Chunk Cards — JS se fill honge -->
-            <div id="chunks-container"></div>
+        </aside>
 
-        </div>
+        <!-- ═══════════════════════════════════════ -->
+        <!--  MAIN CONTENT                           -->
+        <!-- ═══════════════════════════════════════ -->
+        <main class="main-content">
+
+            <!-- Active Downloads Section -->
+            <section class="active-downloads">
+                <h2>Active Downloads <span id="active-count">(0)</span></h2>
+                <div id="downloads-list">
+                    <!-- JS se download cards yahan inject honge -->
+                </div>
+            </section>
+
+            <!-- Recent Downloads / History Table -->
+            <section class="recent-downloads">
+                <div class="section-header">
+                    <h2>Recent Downloads</h2>
+                    <button id="clear-history-btn">Clear History</button>
+                </div>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th>Completed</th>
+                            <th>Location</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                        <!-- JS se history rows yahan inject honge -->
+                    </tbody>
+                </table>
+            </section>
+
+        </main>
 
     </div>
-    <script type="module" src="main.js"></script>
 
+    <script src="main.js"></script>
 </body>
 
 </html>
