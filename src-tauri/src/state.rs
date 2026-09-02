@@ -1,4 +1,4 @@
-use std::collection::HashMap;
+use std::collections::HashMap;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 

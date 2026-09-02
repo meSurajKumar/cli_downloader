@@ -37,17 +37,14 @@ fn history_path()->PathBuf{
 
 
 //  History load karo file se
-pub fn load_history() -> Result<Vec<HistoryEntry>, Box<dyn std::error::Error>> {
+pub fn load_history() -> Vec<HistoryEntry>{
     let path = history_path();
 
     if !path.exists() {
-        return Ok(vec![]);
+        return vec![];
     }
-
-    let data = fs::read_to_string(&path)?;
-    let history = serde_json::from_str(&data)?;
-
-    Ok(history)
+    let data = fs::read_to_string(&path).unwrap_or_default();
+    serde_json::from_str(&data).unwrap_or_default()
 }
 
 // History save karo file mein
@@ -65,5 +62,5 @@ pub fn save_history(entries: &Vec<HistoryEntry>){
 pub fn add_history_entry(entry: HistoryEntry){
     let mut entries = load_history();
     entries.insert(0,entry); // latest phale
-    save_history(&entries)
+    save_history(&entries);
 }

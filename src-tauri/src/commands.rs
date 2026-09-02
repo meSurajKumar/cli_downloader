@@ -3,6 +3,24 @@ use serde::Serialize;
 use std::time::Instant;
 use crate::network::{fetch_metadata, calculate_chunks, download_chunk_with_progress};
 use crate::disk::{create_output_file, wirte_chunk_to_file};
+use crate::state::{DownloadRegistry};
+use crate::history::{HistoryEntry, load_history};
+use crate::settings::{AppSettings, load_setting, save_settings};
+use tokio::sync::watch;
+use tokio_util::sync::CancellationToken;
+use tauri::State;
+use std::sync::Mutex;
+use uuid::Uuid;
+
+
+//-- file size info ki leye struct -
+#[derive(Serialize, Clone)]
+pub struct FileInfo{
+    pub size: String,
+    pub content_type: String,
+    pub accepts_range: bool,
+    pub last_modified: String,
+}
 
 // Js ko bhejea jaayega -> Serialize zaroori
 #[derive(Serialize, Clone)]
@@ -20,6 +38,130 @@ pub struct ChunkProgressPayload {
     pub percent: f64,
     pub speed_mbps: f64,
     pub status: String,
+}
+
+
+
+// Get File info model refresh details
+#[tauri::command]
+pub async fn get_file_info(url: String)->Result<FileInfo, String>{
+    let client = reqwest::Client::new();
+    let resp = client.head(&url).send().await.map_err(|e| e.to_string())?;
+
+    let headers = resp.headers();
+
+    let size = headers.get("content-length").and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<u64>().ok())
+    .map(|b| format!("{:.2} MB", b as f64 / 1_000_000.0))
+    .unwrap_or("Unknown".to_string());
+
+    let content_type = headers.get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("Unknown").to_string();
+
+    let accepts_range = headers.get("accept-ranges").and_then(|v| v.to_str().ok()).map(|v| v == "bytes").unwrap_or(false);
+
+    let last_modified= headers.get("last-modified").and_then(|v| v.to_str().ok()).unwrap_or("Unknown").to_string();
+    Ok(FileInfo {size, content_type, accepts_range, last_modified})
+
+} 
+
+// cancle download
+#[tauri::command]
+pub fn cancel_download(
+    download_id: String,
+    registry: State<Mutex<DownloadRegistry>>,
+)->Result<(), String>{
+    let mut reg = registry.lock().unwrap();
+    if let  Some(ctrl) = reg.downloads.remove(&download_id){
+        ctrl.cancel_token.cancel();
+        Ok(())
+    }else{
+        Err("Download not found".to_string())
+    }
+}
+
+// Pause Download
+#[tauri::command]
+pub fn pause_download(
+    download_id: String,
+    registry: State<Mutex<DownloadRegistry>>,
+)-> Result<(), String>{
+    let reg = registry.lock().unwrap();
+    if let Some(ctrl) = reg.downloads.get(&download_id){
+        ctrl.pause_tx.send(true).map_err(|e| e.to_string())?;
+        Ok(())
+    }else{
+        Err("Download not found".to_string())
+    }
+}
+
+//  Resume download
+#[tauri::command]
+pub fn resume_download(
+    download_id: String,
+    registry: State<Mutex<DownloadRegistry>>,
+)-> Result<(), String>{
+    let reg = registry.lock().unwrap();
+    if let Some(ctrl) = reg.downloads.get(&download_id){
+        ctrl.pause_tx.send(false).map_err(|e| e.to_string())?;
+        Ok(())
+    }else{
+        Err("Download not found".to_string())
+    }
+}
+
+//  Get history
+#[tauri::command]
+pub fn get_history()->Vec<HistoryEntry>{
+    load_history()
+}
+
+// Clear History
+#[tauri::command] 
+pub fn clear_history()->Result<(), String>{
+    crate::history::save_history(&vec![]);
+    Ok(())
+}
+
+//  Get Settings
+#[tauri::command]
+pub fn get_settings()->AppSettings{
+    load_setting()
+}
+
+// ─────────────────────────────────
+//  save_settings
+// ─────────────────────────────────
+#[tauri::command]
+pub fn save_settings_cmd(settings: AppSettings) -> Result<(), String> {
+    save_settings(&settings);
+    Ok(())
+}
+// ─────────────────────────────────
+//  select_folder — folder picker dialog
+// ─────────────────────────────────
+#[tauri::command]
+pub async fn select_folder(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    use tokio::sync::oneshot;
+    let (tx, rx) = oneshot::channel();
+
+    app.dialog()
+        .file()
+        .pick_folder(move |folder| {
+            let _ = tx.send(folder);
+        });
+    rx.await.ok().flatten().map(|p| p.to_string())
+}
+// ─────────────────────────────────
+//  open_file_location — Explorer mein open karo
+// ─────────────────────────────────
+#[tauri::command]
+pub fn open_file_location(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer")
+        .args(["/select,", &path])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 
