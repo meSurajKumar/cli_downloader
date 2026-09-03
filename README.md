@@ -1,8 +1,8 @@
-# ⬇️ RustDL — Multi-threaded CLI File Downloader
+# ⬇️ EasyDownloader — Multi-threaded Desktop Download Manager
 
-A blazing-fast, parallel file downloader built from scratch in **Rust** — designed to maximize download speeds by splitting files into chunks and downloading them concurrently using async I/O.
+A blazing-fast, parallel file downloader built with **Rust + Tauri** — featuring a modern dark UI, real-time progress tracking, pause/cancel support, download history, and file categorization.
 
-> 🚧 **Status:** Active Development — Core engine complete, GUI integration planned.
+> 🚧 **Status:** Active Development — Core engine + GUI complete, Settings panel in progress.
 
 ---
 
@@ -10,55 +10,79 @@ A blazing-fast, parallel file downloader built from scratch in **Rust** — desi
 
 - ⚡ **Parallel Chunk Downloading** — Splits files into N chunks, downloads each simultaneously
 - 🌐 **HTTP Range Requests** — Uses `Range: bytes=start-end` headers for partial downloads
-- 🔍 **Server Probing** — HEAD request se file size aur range support detect karta hai
+- 🔍 **File Info Probe** — HEAD request se file size, content type, range support detect karta hai
 - 📡 **Async I/O** — Tokio runtime pe built — non-blocking, high performance
 - 💾 **Safe Disk Writing** — Pre-allocated file + seeked writes — no corruption
-- 📊 **Real-time Progress** — MPSC channels se live download events track karta hai
-- 🛡️ **Custom Error Handling** — `thiserror` se type-safe errors, no panics
+- 📊 **Real-time Progress** — Live per-chunk progress bars with speed (MB/s)
+- ⏸️ **Pause / Resume** — CancellationToken + watch channel se download control
+- ✕ **Cancel** — Instant cancellation with registry cleanup
+- 🕐 **Download History** — JSON file mein persist hoti hai, app restart ke baad bhi
+- 📂 **File Categories** — Auto-categorize: Video, Audio, Image, Compressed, Document
+- 📁 **Open File Location** — Windows Explorer mein directly open karo
+- 🌙 **Dark Theme UI** — Modern glassmorphism-inspired design
+- 🗂️ **Add Download Window** — Separate OS window with native title bar
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                        main.rs                          │
-│          (Tokio Runtime + Orchestration)                │
-└──────┬──────────┬──────────┬──────────┬────────────────┘
-       │          │          │          │
-       ▼          ▼          ▼          ▼
-  network.rs   disk.rs  progress.rs  error.rs
-  (HTTP)       (I/O)    (Channels)   (Types)
-       │          │          │
-       └──────────┴──────────┘
-                  │
-              types.rs
-         (Shared Data Structs)
+EasyDownloader
+├── Frontend (HTML/CSS/JS)          ← Tauri Webview
+│   ├── index.html                  ← Main window (2-column layout)
+│   ├── style.css                   ← Dark theme, grid layout, animations
+│   ├── main.js                     ← App logic, event listeners, history
+│   ├── modal.html                  ← Add Download window (separate OS window)
+│   └── modal.js                    ← Modal logic, folder picker, download trigger
+│
+└── Backend (Rust / src-tauri)
+    ├── main.rs                     ← Tauri entry point
+    ├── lib.rs                      ← Module declarations, global state
+    ├── commands.rs                 ← All Tauri commands (invoke handlers)
+    ├── state.rs                    ← DownloadRegistry (pause/cancel control)
+    ├── history.rs                  ← HistoryEntry, JSON persistence
+    ├── settings.rs                 ← AppSettings, JSON persistence
+    ├── network.rs                  ← HTTP HEAD probe, Range GET, chunk download
+    ├── disk.rs                     ← File pre-allocation, seeked writes
+    ├── types.rs                    ← Chunk, DownloadConfig, FileMetadata
+    └── error.rs                    ← Custom DownloadError enum
 ```
-
-### Module Responsibilities
-
-| Module | Kaam |
-|--------|------|
-| `main.rs` | Tokio runtime init, orchestration, task spawning |
-| `network.rs` | HTTP HEAD probe, Range GET requests, chunk download |
-| `disk.rs` | Pre-allocate file, seeked concurrent writes |
-| `progress.rs` | MPSC channel setup, progress event handling |
-| `error.rs` | Custom `DownloadError` enum, `Result<T>` alias |
-| `types.rs` | `Chunk`, `DownloadConfig`, `FileMetadata`, `ChunkStatus` |
 
 ---
 
 ## 🔄 How It Works
 
 ```
-1. HEAD Request  →  File size + Range support detect karo
-2. Chunk Math    →  File ko N equal parts me divide karo
-3. File Alloc    →  Disk pe full-size empty file banao
-4. Spawn Tasks   →  Har chunk ke liye ek Tokio async task
-5. Range GET     →  Har task apna specific byte range download kare
-6. Seeked Write  →  Apne offset pe directly file me likho
-7. Progress      →  MPSC channel se main thread ko updates bhejo
+User clicks "+ Add Download"
+        │
+        ▼
+New OS Window opens (modal.html)
+        │
+        ├── URL input karo
+        ├── "Refresh Details" → HEAD request → file size, type, ranges
+        ├── "Browse" → Folder picker (tauri-plugin-dialog)
+        │
+        ▼
+"Download" button click
+        │
+        ├── invoke('start_download') → Rust backend
+        │       ├── UUID generate (download_id)
+        │       ├── fetch_metadata() → file size
+        │       ├── calculate_chunks() → byte ranges
+        │       ├── create_output_file() → pre-allocate disk
+        │       ├── CancellationToken + pause channel create
+        │       ├── DownloadRegistry mein register
+        │       └── tokio::spawn() → parallel chunk downloads
+        │               ├── Range GET request
+        │               ├── Progress emit → "chunk-progress" event
+        │               ├── seeked write to disk
+        │               └── All done → add_history_entry() + "download-complete" event
+        │
+        ▼
+Main window updates:
+        ├── Download card show (progress bar, speed, pause/cancel)
+        ├── On complete → card remove, history table refresh
+        └── Category counts update
 ```
 
 ---
@@ -67,52 +91,56 @@ A blazing-fast, parallel file downloader built from scratch in **Rust** — desi
 
 ### Prerequisites
 
-- Rust (stable) — [rustup.rs](https://rustup.rs)
+- **Rust** (stable) — [rustup.rs](https://rustup.rs)
+- **Node.js** — [nodejs.org](https://nodejs.org)
+- **Tauri CLI** — `cargo install tauri-cli`
+- **WebView2** (Windows) — usually pre-installed
 
-### Build & Run
+### Run in Development
 
 ```bash
 # Clone the repo
-git clone <your-repo-url>
+git clone https://github.com/meSurajKumar/cli_downloader.git
 cd cli_downloader
 
-# Build
-cargo build
-
-# Run
-cargo run
+# Dev server start karo
+cargo tauri dev
 ```
 
-### Example Output
+### Build for Production
 
-```
-🔍 Probing server...
-✅ Size: 104.86 MB | Range: true
-📁 Creating output file: output.bin
-
-🚀 Chunk 0 downloading...
-🚀 Chunk 1 downloading...
-🚀 Chunk 2 downloading...
-🚀 Chunk 3 downloading...
-
-Chunk 0: 26214400 bytes received
-Chunk 0 completed
-...
-✅ Download complete! File saved as: output.bin
+```bash
+cargo tauri build
 ```
 
 ---
 
 ## 🧰 Tech Stack
 
+### Backend (Rust)
+
 | Crate | Version | Use |
 |-------|---------|-----|
-| `tokio` | 1.x | Async runtime (`#[tokio::main]`, `spawn`, `spawn_blocking`) |
-| `reqwest` | 0.12 | HTTP client (HEAD + GET with Range headers) |
-| `thiserror` | 2.x | Custom error types with `#[from]` auto-conversion |
-| `futures` | 0.3 | Async utilities |
-| `indicatif` | 0.17 | Progress bar (planned) |
-| `clap` | 4.x | CLI argument parsing (planned) |
+| `tauri` | 2.x | Desktop app framework |
+| `tokio` | 1.x | Async runtime |
+| `reqwest` | 0.12 | HTTP client (HEAD + Range GET) |
+| `tokio-util` | 0.7 | `CancellationToken` for cancel/pause |
+| `uuid` | 1.x | Unique download IDs |
+| `serde` / `serde_json` | 1.x | JSON serialization (history, settings) |
+| `chrono` | 0.4 | Timestamps for history entries |
+| `dirs` | 5.x | Platform-agnostic AppData paths |
+| `thiserror` | 2.x | Custom error types |
+| `tauri-plugin-dialog` | 2.x | Native folder picker |
+| `tauri-plugin-log` | 2.x | Debug logging |
+
+### Frontend
+
+| Technology | Use |
+|-----------|-----|
+| HTML5 | Structure (semantic layout) |
+| Vanilla CSS | Dark theme, CSS Grid, animations |
+| Vanilla JS | App logic, event handling |
+| Tauri JS API | `invoke`, `listen`, `WebviewWindow` |
 
 ---
 
@@ -120,40 +148,79 @@ Chunk 0 completed
 
 ```
 cli_downloader/
-├── Cargo.toml
-├── README.md
-└── src/
-    ├── main.rs         # Entry point, Tokio runtime
-    ├── lib.rs          # Module declarations
-    ├── types.rs        # Core data structures & enums
-    ├── error.rs        # Custom DownloadError enum
-    ├── network.rs      # HTTP requests, Range headers
-    ├── disk.rs         # File I/O, seeked concurrent writes
-    └── progress.rs     # MPSC channels, progress tracking
+├── frontend/
+│   ├── index.html          ← Main window
+│   ├── style.css           ← Complete UI styling
+│   ├── main.js             ← Main window logic
+│   ├── modal.html          ← Add Download window
+│   └── modal.js            ← Modal logic
+│
+├── src-tauri/
+│   ├── Cargo.toml
+│   ├── tauri.conf.json
+│   ├── capabilities/
+│   │   └── default.json    ← Tauri permissions
+│   └── src/
+│       ├── main.rs
+│       ├── lib.rs
+│       ├── commands.rs     ← All invoke commands
+│       ├── state.rs        ← Global download registry
+│       ├── history.rs      ← Download history
+│       ├── settings.rs     ← App settings
+│       ├── network.rs      ← HTTP layer
+│       ├── disk.rs         ← File I/O
+│       ├── types.rs        ← Shared types
+│       └── error.rs        ← Error handling
+│
+└── README.md
 ```
+
+---
+
+## 📋 Tauri Commands
+
+| Command | Description |
+|---------|-------------|
+| `start_download` | Download start karo, `download_id` return karo |
+| `cancel_download` | Download cancel karo |
+| `pause_download` | Download pause karo |
+| `resume_download` | Paused download resume karo |
+| `get_file_info` | URL ka HEAD request — size, type, ranges |
+| `get_history` | Sari history load karo |
+| `clear_history` | History delete karo |
+| `get_settings` | App settings load karo |
+| `save_settings_cmd` | Settings save karo |
+| `select_folder` | Native folder picker open karo |
+| `open_file_location` | Windows Explorer mein file open karo |
+| `get_metadata` | File metadata fetch karo |
 
 ---
 
 ## 🗺️ Roadmap
 
 ### ✅ Done
-- [x] Project architecture & module setup
-- [x] Custom error handling with `thiserror`
-- [x] Server metadata probe (HEAD request)
-- [x] Chunk calculation (byte range math)
-- [x] Parallel async task spawning (Tokio)
-- [x] MPSC channel-based progress tracking
-- [x] Range GET download per chunk
-- [x] Pre-allocated seeked file writes
 
-### 🔜 Planned
-- [ ] CLI arguments (`--url`, `--threads`, `--output`) via `clap`
-- [ ] Real-time progress bar with speed (MB/s) + ETA via `indicatif`
-- [ ] Range fallback (single-stream for non-range servers)
-- [ ] Retry logic (3 retries per failed chunk)
-- [ ] Resume support (download jahan ruka wahan se)
-- [ ] Checksum verification (MD5/SHA256)
-- [ ] **Floem GUI** — Native desktop UI with live progress bars
+- [x] Parallel chunk downloading (Tokio async tasks)
+- [x] HTTP Range requests
+- [x] Pre-allocated seeked file writes
+- [x] Tauri GUI — dark theme, 2-column layout
+- [x] Real-time chunk progress bars
+- [x] Add Download modal (separate OS window)
+- [x] Pause / Resume / Cancel downloads
+- [x] Download history (JSON persistence)
+- [x] File auto-categorization
+- [x] Open file location (Windows Explorer)
+- [x] Native folder picker
+- [x] Global download registry (state management)
+
+### 🔜 In Progress
+
+- [ ] Settings panel (default path, threads, speed limit)
+- [ ] ETA calculation
+- [ ] Speed limiting
+- [ ] Retry logic (N retries per failed chunk)
+- [ ] Light theme toggle
+- [ ] Drag & drop URL support
 
 ---
 
@@ -161,14 +228,15 @@ cli_downloader/
 
 | Concept | Kahan Use Hua |
 |---------|---------------|
-| `async/await` | Network requests, task coordination |
+| `async/await` | Network requests, Tauri commands |
 | `tokio::spawn` | Parallel chunk download tasks |
-| `tokio::task::spawn_blocking` | File I/O (blocking) in async context |
-| `mpsc::channel` | Cross-task progress communication |
-| `Result<T, E>` + `?` operator | Error propagation without panics |
-| `#[from]` in `thiserror` | Auto error type conversion |
+| `Arc<AtomicUsize>` | Thread-safe chunk completion counter |
+| `CancellationToken` | Download cancel support |
+| `watch::channel` | Pause/resume signal broadcast |
+| `Mutex<T>` + `State<T>` | Global download registry in Tauri |
+| `serde` | JSON history/settings persistence |
 | `SeekFrom::Start` | Writing at specific file offsets |
-| `Clone` on `Client` | Cheap shared HTTP connection pool |
+| `Result<T, E>` + `?` | Error propagation without panics |
 
 ---
 
@@ -180,4 +248,4 @@ MIT License
 
 ## 🙋 Author
 
-Built as a learning project to master Rust's async ecosystem — Tokio, ownership, and systems programming.
+Built as a deep-dive project to master **Rust async**, **systems programming**, and **Tauri desktop development**.
