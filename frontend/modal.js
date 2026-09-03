@@ -70,6 +70,17 @@ downloadBtn.addEventListener('click', async () => {
             outputPath,
             threads: 4,
         });
+        // Download start ho gaya — main window ko batao
+        const mainWin = await window.__TAURI__.webviewWindow.WebviewWindow.getByLabel('main');
+        if (mainWin) {
+            await mainWin.emit('new-download', {
+                downloadId,
+                filename: customFilename.value.trim() || url.split('/').pop().split('?')[0],
+                threads: 4,
+            });
+        }
+        thisWindow.close();
+
 
         // Download start ho gaya — window close karo
         thisWindow.close();

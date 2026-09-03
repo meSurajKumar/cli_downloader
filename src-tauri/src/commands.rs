@@ -3,14 +3,18 @@ use serde::Serialize;
 use std::time::Instant;
 use crate::network::{fetch_metadata, calculate_chunks, download_chunk_with_progress};
 use crate::disk::{create_output_file, wirte_chunk_to_file};
-use crate::state::{DownloadRegistry};
-use crate::history::{HistoryEntry, load_history};
+use crate::state::{DownloadRegistry,DownloadControl};
+use crate::history::{HistoryEntry, load_history, get_file_category, add_history_entry};
 use crate::settings::{AppSettings, load_setting, save_settings};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use tauri::State;
 use std::sync::Mutex;
 use uuid::Uuid;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+// use std::cmp::Ordering;
+
 
 
 //-- file size info ki leye struct -
@@ -181,66 +185,152 @@ pub async fn get_metadata(url: String)-> Result<MetadataResult, String>{
 }
 
 // JS call: invoke('start_download', { url, threads, outputPath })
+// JS call: invoke('start_download', { url, filename, outputPath, threads })
 #[tauri::command]
-pub async fn start_download(url: String, threads: usize, output_path: String, window: Window)-> Result<String, String>{
+pub async fn start_download(
+    url: String,
+    filename: Option<String>,
+    output_path: String,
+    threads: usize,
+    window: Window,
+    registry: State<'_, Mutex<DownloadRegistry>>,
+) -> Result<String, String> {
+
+    // ── Download ID generate karo ──
+    let download_id = Uuid::new_v4().to_string();
+
+    // ── File metadata fetch karo ──
     let metadata = fetch_metadata(&url).await.map_err(|e| e.to_string())?;
-    let chunks = calculate_chunks(metadata.file_size, threads);
-    create_output_file(&output_path, metadata.file_size).map_err(|e| e.to_string())?;
+
+    // ── Filename decide karo ──
+    let actual_filename = filename.unwrap_or_else(|| {
+        url.split('/').last().unwrap_or("file")
+            .split('?').next().unwrap_or("file")
+            .to_string()
+    });
+
+    // ── Full save path ──
+    let full_path = format!("{}\\{}", output_path, actual_filename);
+
+    let chunks     = calculate_chunks(metadata.file_size, threads);
+    let num_chunks = chunks.len();
+
+    create_output_file(&full_path, metadata.file_size).map_err(|e| e.to_string())?;
+
+    // ── CancellationToken + pause channel ──
+    let cancel_token        = CancellationToken::new();
+    let (pause_tx, pause_rx) = watch::channel(false); // false = running
+
+    // ── Registry mein register karo ──
+    {
+        let mut reg = registry.lock().unwrap();
+        reg.downloads.insert(download_id.clone(), DownloadControl {
+            cancel_token: cancel_token.clone(),
+            pause_tx,
+        });
+    }
+
+    // ── Completed chunks track karo ──
+    let completed = Arc::new(AtomicUsize::new(0));
+
     let client = reqwest::Client::new();
-    for chunk in chunks{
-        let window_clone = window.clone();
-        let client_clone = client.clone();
-        let url_clone = url.clone();
-        let path_clone = output_path.clone();
-        let total = metadata.file_size;
-        let chunk_size = chunk.end_byte - chunk.start_byte + 1;
+
+    for chunk in chunks {
+        let window_clone    = window.clone();
+        let client_clone    = client.clone();
+        let url_clone       = url.clone();
+        let path_clone      = full_path.clone();
+        let cancel_clone    = cancel_token.clone();
+        let mut pause_rx_clone = pause_rx.clone();
+        let download_id_clone  = download_id.clone();
+        let completed_clone    = Arc::clone(&completed);
+        let filename_clone     = actual_filename.clone();
+        let save_path_clone    = full_path.clone();
+        let url_history        = url.clone();
+        let file_size          = metadata.file_size;
+        let chunk_size         = chunk.end_byte - chunk.start_byte + 1;
 
         tokio::spawn(async move {
-            let start_time = Instant::now(); // Speed measure krne ki leye
+
+            // ── Cancel check ──
+            if cancel_clone.is_cancelled() { return; }
+
+            let start_time = Instant::now();
+
             let result = download_chunk_with_progress(
-                &client_clone,&url_clone,&chunk,
-                |bytes_so_far|{
+                &client_clone, &url_clone, &chunk,
+                |bytes_so_far| {
+                    // Pause check
+                    if *pause_rx_clone.borrow() {
+                        // Paused — wait karo (simple approach)
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                    }
+
                     let elapsed = start_time.elapsed().as_secs_f64();
-                    let speed = if elapsed > 0.0 {
+                    let speed   = if elapsed > 0.0 {
                         bytes_so_far as f64 / elapsed / 1_000_000.0
-                    }else {0.0};
-                    let percent = (bytes_so_far as f64 / chunk_size as f64) *100.0;
-                    // har peice pr js ko update bhejo
-                    window_clone.emit("chunk-progress", ChunkProgressPayload{
-                        chunk_id: chunk.id,
+                    } else { 0.0 };
+                    let percent = (bytes_so_far as f64 / chunk_size as f64) * 100.0;
+
+                    window_clone.emit("chunk-progress", ChunkProgressPayload {
+                        chunk_id:         chunk.id,
                         bytes_downloaded: bytes_so_far,
-                        total_bytes: chunk_size,
-                        percent: percent.min(100.0),
-                        speed_mbps: speed,
-                        status: "downloading".to_string(),
+                        total_bytes:      chunk_size,
+                        percent:          percent.min(100.0),
+                        speed_mbps:       speed,
+                        status:           "downloading".to_string(),
                     }).ok();
                 }
             ).await;
+
             match result {
                 Ok(data) => {
                     wirte_chunk_to_file(&path_clone, chunk.start_byte, &data).ok();
 
-                    // Compeltion event
-                    window_clone.emit("chunk-progress", ChunkProgressPayload{
-                        chunk_id: chunk.id,
+                    // Chunk done event
+                    window_clone.emit("chunk-progress", ChunkProgressPayload {
+                        chunk_id:         chunk.id,
                         bytes_downloaded: chunk_size,
-                        total_bytes: chunk_size,
-                        percent: 100.0,
-                        speed_mbps:0.0,
-                        status: "done".to_string(),
+                        total_bytes:      chunk_size,
+                        percent:          100.0,
+                        speed_mbps:       0.0,
+                        status:           "done".to_string(),
                     }).ok();
+
+                    // ── Sab chunks done? ──
+                    let prev = completed_clone.fetch_add(1, Ordering::SeqCst);
+                    if prev + 1 == num_chunks {
+                        // History mein save karo
+                        let file_type = get_file_category(&filename_clone).to_string();
+                        add_history_entry(HistoryEntry {
+                            id:           download_id_clone.clone(),
+                            filename:     filename_clone,
+                            url:          url_history,
+                            file_size,
+                            save_path:    save_path_clone,
+                            file_type,
+                            completed_at: chrono::Local::now()
+                                            .format("%d %b %Y, %I:%M %p")
+                                            .to_string(),
+                        });
+
+                        // JS ko complete notify karo
+                        window_clone.emit("download-complete", &download_id_clone).ok();
+                    }
                 }
-                Err(e) =>{
-                    window_clone.emit("chunk-progress", ChunkProgressPayload{
-                        chunk_id: chunk.id,
+                Err(e) => {
+                    window_clone.emit("chunk-progress", ChunkProgressPayload {
+                        chunk_id:         chunk.id,
                         bytes_downloaded: 0,
-                        total_bytes: chunk_size,
-                        percent: 0.0,
-                        speed_mbps:0.0,
-                        status: format!("error: {}",e),
+                        total_bytes:      chunk_size,
+                        percent:          0.0,
+                        speed_mbps:       0.0,
+                        status:           format!("error: {}", e),
                     }).ok();
                 }
             }
         });
-    }Ok("Download started!".to_string())
+    }
+
+    Ok(download_id)  // ← JS ko download_id return hoga
 }
