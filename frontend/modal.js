@@ -1,6 +1,6 @@
 const { invoke } = window.__TAURI__.core;
-const { getCurrent } = window.__TAURI__.webviewWindow;
-const { writeText, readText } = window.__TAURI__.clipboardManager;
+const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow;
+// const { writeText, readText } = window.__TAURI__.clipboardManager;
 
 // DOM Elements
 const modalUrl = document.getElementById('modal-url');
@@ -13,15 +13,38 @@ const cancelBtn = document.getElementById('modal-cancel');
 const downloadBtn = document.getElementById('modal-download');
 
 // Current window reference
-const thisWindow = getCurrent();
+const thisWindow = getCurrentWebviewWindow();
+
 
 // ── Cancel → window band karo ──
 cancelBtn.addEventListener('click', () => thisWindow.close());
 
+// ── Fetch Details helper ──
+async function fetchDetails(url) {
+    if (!url) return;
+    refreshBtn.textContent = '⟳ Loading...';
+    refreshBtn.disabled = true;
+    try {
+        const info = await invoke('get_file_info', { url });
+        document.getElementById('detail-size').textContent = info.size || '--';
+        document.getElementById('detail-type').textContent = info.content_type || '--';
+        document.getElementById('detail-ranges').textContent = info.accepts_range ? 'Yes ✅' : 'No ❌';
+        document.getElementById('detail-date').textContent = info.last_modified || '--';
+    } catch (e) {
+        console.error('File info error:', e);
+    } finally {
+        refreshBtn.textContent = '↺ Refresh Details';
+        refreshBtn.disabled = false;
+    }
+}
+
+
+
 // ── Paste ──
 pasteBtn.addEventListener('click', async () => {
-    const text = await readText();
+    const text = await navigator.clipboard.readText();
     modalUrl.value = text;
+    fetchDetails(text);
 });
 
 // ── Browse Folder ──
@@ -31,26 +54,32 @@ browseBtn.addEventListener('click', async () => {
 });
 
 // ── Refresh Details ──
-refreshBtn.addEventListener('click', async () => {
-    const url = modalUrl.value.trim();
-    if (!url) return;
+// refreshBtn.addEventListener('click', async () => {
+//     const url = modalUrl.value.trim();
+//     if (!url) return;
 
-    refreshBtn.textContent = '⟳ Loading...';
-    refreshBtn.disabled = true;
+//     refreshBtn.textContent = '⟳ Loading...';
+//     refreshBtn.disabled = true;
 
-    try {
-        const info = await invoke('get_file_info', { url });
-        document.getElementById('detail-size').textContent = info.size || '--';
-        document.getElementById('detail-type').textContent = info.content_type || '--';
-        document.getElementById('detail-ranges').textContent = info.accepts_range ? 'Yes ✅' : 'No ❌';
-        document.getElementById('detail-date').textContent = info.last_modified || '--';
-    } catch (e) {
-        alert('Error: ' + e);
-    } finally {
-        refreshBtn.textContent = '↺ Refresh Details';
-        refreshBtn.disabled = false;
-    }
+//     try {
+//         const info = await invoke('get_file_info', { url });
+//         document.getElementById('detail-size').textContent = info.size || '--';
+//         document.getElementById('detail-type').textContent = info.content_type || '--';
+//         document.getElementById('detail-ranges').textContent = info.accepts_range ? 'Yes ✅' : 'No ❌';
+//         document.getElementById('detail-date').textContent = info.last_modified || '--';
+//     } catch (e) {
+//         alert('Error: ' + e);
+//     } finally {
+//         refreshBtn.textContent = '↺ Refresh Details';
+//         refreshBtn.disabled = false;
+//     }
+// });
+// ── Refresh Details ──
+refreshBtn.addEventListener('click', () => {
+    fetchDetails(modalUrl.value.trim());
 });
+
+
 
 // ── Download Button ──
 downloadBtn.addEventListener('click', async () => {
@@ -81,9 +110,6 @@ downloadBtn.addEventListener('click', async () => {
         }
         thisWindow.close();
 
-
-        // Download start ho gaya — window close karo
-        thisWindow.close();
 
     } catch (e) {
         alert('Error: ' + e);
